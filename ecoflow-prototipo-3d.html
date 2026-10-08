@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prototipo · ECO-FLOW 3D</title>
+<style>
+  :root{--navy:#173A5E;--green:#2E8B45;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;overflow:hidden;font-family:"Segoe UI",Calibri,Arial,sans-serif;
+    background:radial-gradient(1200px 700px at 60% 30%, #eaf3fb 0%, #cfdded 55%, #b7c9dc 100%);}
+  #app{position:fixed;inset:0;} canvas{display:block;}
+
+  #hdr{position:fixed;top:14px;left:14px;z-index:30;background:rgba(255,255,255,.92);border-radius:12px;
+    padding:9px 18px;box-shadow:0 6px 18px rgba(0,0,0,.22);}
+  #hdr b{color:var(--navy);font-size:17px;}
+
+  #side{position:fixed;top:14px;right:14px;z-index:30;width:238px;max-width:44vw;
+    background:rgba(255,255,255,.94);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.22);padding:8px;}
+  #side h3{margin:6px 8px 6px;font-size:12px;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;}
+  .item{display:flex;gap:9px;align-items:center;padding:6px 8px;border-radius:9px;cursor:pointer;transition:.12s;}
+  .item:hover,.item.active{background:#eaf3ec;}
+  .item .num{flex:0 0 20px;height:20px;border-radius:50%;background:var(--green);color:#fff;font-size:11px;font-weight:800;
+    display:flex;align-items:center;justify-content:center;}
+  .item b{font-size:12.5px;color:#1c2733;font-weight:700;}
+  #side .tipbox{margin:6px 8px 2px;font-size:11px;color:#5a6b78;border-top:1px solid #e6ecf1;padding-top:7px;}
+
+  #ctrls{position:fixed;left:14px;bottom:14px;z-index:30;display:flex;gap:8px;flex-wrap:wrap;}
+  .btn{border:none;border-radius:11px;padding:10px 14px;font-size:13px;font-weight:800;cursor:pointer;
+    background:rgba(255,255,255,.94);color:var(--navy);box-shadow:0 5px 14px rgba(0,0,0,.22);transition:.12s;}
+  .btn:hover{transform:translateY(-1px);} .btn.on{background:var(--green);color:#fff;}
+
+  .marker{position:fixed;z-index:20;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;
+    background:rgba(46,139,69,.96);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;
+    border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);cursor:pointer;transition:transform .1s, background .1s;}
+  .marker:hover,.marker.active{background:#173A5E;transform:scale(1.2);}
+  .marker.box{background:#c88a12;} .marker.box:hover{background:#8a5e00;}
+
+  #tip{position:fixed;z-index:40;pointer-events:none;background:rgba(18,33,46,.95);color:#eef4f9;border-radius:10px;
+    padding:9px 12px;max-width:250px;font-size:12.5px;line-height:1.35;box-shadow:0 8px 22px rgba(0,0,0,.4);opacity:0;transition:opacity .12s;}
+  #tip b{color:#7fd0ff;display:block;margin-bottom:2px;font-size:13px;}
+  #hint{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:25;background:rgba(20,30,40,.7);color:#eaf1f7;
+    font-size:12px;padding:7px 14px;border-radius:16px;pointer-events:none;transition:opacity .5s;}
+
+  #modal{position:fixed;inset:0;z-index:60;background:rgba(10,20,30,.72);backdrop-filter:blur(4px);
+    display:none;align-items:center;justify-content:center;padding:24px;}
+  #modal.show{display:flex;}
+  .sheet{background:#fff;border-radius:18px;max-width:1040px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 30px 80px rgba(0,0,0,.5);}
+  .sheethd{position:sticky;top:0;background:linear-gradient(180deg,#20507c,#173A5E);color:#fff;padding:16px 22px;
+    display:flex;justify-content:space-between;align-items:center;border-radius:18px 18px 0 0;}
+  .sheethd b{font-size:18px;} .sheethd span{font-size:12.5px;color:#bcd6ee;display:block;margin-top:2px;}
+  .close{background:rgba(255,255,255,.2);border:none;color:#fff;width:38px;height:38px;border-radius:10px;font-size:20px;cursor:pointer;}
+  .close:hover{background:rgba(255,255,255,.35);}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;padding:20px 22px 26px;}
+  .card{border:1px solid #e6ecf1;border-radius:14px;padding:14px 12px;text-align:center;background:#fbfdff;transition:.12s;}
+  .card:hover{box-shadow:0 8px 20px rgba(20,50,80,.12);transform:translateY(-2px);}
+  .card svg{width:66px;height:66px;}
+  .card .nm{margin-top:8px;font-size:12.5px;font-weight:700;color:#1c2733;line-height:1.25;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="hdr"><b>Prototipo</b></div>
+
+<div id="side"><h3>Componentes</h3><div id="list"></div></div>
+
+<div id="ctrls">
+  <button class="btn" id="explode">⤢ Separar piezas</button>
+  <button class="btn" id="rotate">⟳ Girar</button>
+  <button class="btn" id="reset">⌂ Vista inicial</button>
+</div>
+
+<div id="tip"></div>
+<div id="hint">Arrastra para rotar · rueda para acercar · clic en la carcasa para ver el interior</div>
+
+<div id="modal"><div class="sheet">
+  <div class="sheethd"><div><b>Componentes electrónicos internos</b><span>Alojados dentro de la carcasa del nodo (el panel solar va en la parte superior del prototipo)</span></div>
+    <button class="close" id="closeModal">×</button></div>
+  <div class="grid" id="grid"></div>
+</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const scene=new THREE.Scene();
+const app=document.getElementById('app');
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidth,innerHeight); app.appendChild(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,0.1,100);
+scene.add(new THREE.HemisphereLight(0xffffff,0x8899aa,0.95));
+const d1=new THREE.DirectionalLight(0xffffff,0.8); d1.position.set(4,8,5); scene.add(d1);
+const d2=new THREE.DirectionalLight(0xffffff,0.35); d2.position.set(-5,3,-4); scene.add(d2);
+const gsh=new THREE.Mesh(new THREE.CircleGeometry(1.4,40),new THREE.MeshBasicMaterial({color:0x1a2a3a,transparent:true,opacity:0.16}));
+gsh.rotation.x=-Math.PI/2; gsh.position.y=0.002; scene.add(gsh);
+
+function mat(c,o={}){return new THREE.MeshStandardMaterial({color:c,roughness:o.rough??0.62,metalness:o.metal??0.15,transparent:o.op!==undefined,opacity:o.op??1});}
+function box(w,h,d,c,o={}){return new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(c,o));}
+function cyl(rt,rb,h,c,o={}){return new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,o.seg??24),mat(c,o));}
+const parts=[];
+function part(id,name,desc,center,exp,action){const g=new THREE.Group();
+  g.userData={id,name,desc,center:center.clone(),home:new THREE.Vector3(),exp:exp.clone(),action};scene.add(g);parts.push(g);return g;}
+function add(g,m){m.userData.root=g;g.add(m);return m;}
+function panelTexture(){const c=document.createElement('canvas');c.width=512;c.height=320;const x=c.getContext('2d');
+  x.fillStyle='#0e2038';x.fillRect(0,0,512,320);const cols=8,rows=5,gp=6,cw=(512-gp*(cols+1))/cols,ch=(320-gp*(rows+1))/rows;
+  for(let i=0;i<cols;i++)for(let j=0;j<rows;j++){const gx=gp+i*(cw+gp),gy=gp+j*(ch+gp);
+    const g=x.createLinearGradient(gx,gy,gx+cw,gy+ch);g.addColorStop(0,'#22406b');g.addColorStop(1,'#12294a');
+    x.fillStyle=g;x.fillRect(gx,gy,cw,ch);x.strokeStyle='#9db8d6';x.lineWidth=1;x.strokeRect(gx+2,gy+2,cw-4,ch-4);}
+  return new THREE.CanvasTexture(c);}
+
+/* ---- structure ---- */
+(function(){const g=part('estructura','Estructura de soporte','Dos postes de madera reutilizada y un tubo central que guía las sondas hasta el agua.',
+  new THREE.Vector3(0.33,2.2,0),new THREE.Vector3(0,0,0));
+  [-0.33,0.33].forEach(x=>{const p=box(0.06,1.95,0.06,0xeef1f4,{rough:.8});p.position.set(x,1.72,0);add(g,p);});
+  const t=cyl(0.045,0.045,1.75,0x8a929a,{metal:.6,rough:.35});t.position.set(0,1.35,0);add(g,t);})();
+
+/* ---- base + water ---- */
+(function(){const g=part('base','Base / contrapeso','Balde reutilizado como base y contrapeso; aporta al porcentaje de materiales reciclados.',
+  new THREE.Vector3(0,0.42,0.40),new THREE.Vector3(0,-0.45,0));
+  const b=cyl(0.42,0.34,0.85,0x2f6fb0,{rough:.5});b.position.set(0,0.42,0);add(g,b);
+  const rim=cyl(0.44,0.44,0.06,0x255c95);rim.position.set(0,0.83,0);add(g,rim);
+  const w=cyl(0.34,0.34,0.18,0x3f9bd6,{op:.55,rough:.2});w.position.set(0,0.78,0);add(g,w);})();
+
+/* ---- panel (on top) ---- */
+(function(){const g=part('panel','Panel solar','Panel solar que alimenta el nodo; se instala en la parte más alta del prototipo.',
+  new THREE.Vector3(0,2.98,0),new THREE.Vector3(0,0.6,0));
+  const tex=panelTexture();
+  const m=[mat(0x9aa7b3),mat(0x9aa7b3),new THREE.MeshStandardMaterial({map:tex,roughness:.4,metalness:.25}),mat(0x22303c),mat(0x9aa7b3),mat(0x9aa7b3)];
+  const p=new THREE.Mesh(new THREE.BoxGeometry(1.75,0.05,1.08),m);p.position.set(0,2.78,0);p.rotation.x=-0.26;add(g,p);
+  const fr=box(1.82,0.03,1.15,0xc9d3da,{metal:.5,rough:.35});fr.position.set(0,2.76,0);fr.rotation.x=-0.26;add(g,fr);})();
+
+/* ---- carcasa: WHITE opaque box mounted on the FRONT of the structure (back glued to posts) ---- */
+(function(){const g=part('carcasa','Carcasa (caja del nodo)','Caja de plástico blanco que aloja la electrónica. Su espaldar va pegado a la estructura; la tapa amarilla abre hacia arriba. Clic para ver el interior.',
+  new THREE.Vector3(0,1.95,0.38),new THREE.Vector3(0,0.2,0.5),'modal');
+  const body=box(0.54,0.34,0.30,0xf3f5f8,{rough:.5});body.position.set(0,1.75,0.20);add(g,body);
+  const lid=box(0.58,0.045,0.34,0xf2c40f,{rough:.5});lid.position.set(0,1.945,0.20);add(g,lid);
+  [-0.30,0.30].forEach(x=>{const tb=box(0.05,0.16,0.04,0xdfe4ea);tb.position.set(x,1.75,0.05);add(g,tb);});})();
+
+/* ---- controlador de carga (external, on the pole) ---- */
+(function(){const g=part('controlador','Controlador de carga PWM 10A','Regulador solar PWM de 10 A: gestiona la carga del panel a la batería y protege el sistema.',
+  new THREE.Vector3(0,1.18,0.18),new THREE.Vector3(0.6,-0.05,0.35));
+  const b=box(0.22,0.15,0.06,0x24303a);b.position.set(0,1.12,0.11);add(g,b);
+  const disp=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.06,0.006),new THREE.MeshStandardMaterial({color:0x0d2b22,emissive:0x1f6f4a,emissiveIntensity:0.6}));
+  disp.position.set(0,1.15,0.145);add(g,disp);
+  const b2=box(0.03,0.03,0.02,0xe6772a);b2.position.set(-0.055,1.07,0.145);add(g,b2);})();
+
+/* ---- batería (stuck to the base) ---- */
+(function(){const g=part('bateria','Batería','Batería recargable que almacena la energía solar; va apoyada encima de la base.',
+  new THREE.Vector3(-0.14,1.0,0.40),new THREE.Vector3(-0.55,0.05,0.5));
+  const b=box(0.28,0.20,0.15,0x1b1b1e);b.position.set(-0.14,0.96,0.30);add(g,b);
+  const cap=box(0.28,0.02,0.15,0x2a2a2e);cap.position.set(-0.14,1.065,0.30);add(g,cap);
+  const t1=box(0.03,0.03,0.03,0xcc2b2b);t1.position.set(-0.21,1.09,0.30);add(g,t1);
+  const t2=box(0.03,0.03,0.03,0x222);t2.position.set(-0.07,1.09,0.30);add(g,t2);})();
+
+/* ---- sondas sumergibles ---- */
+(function(){const g=part('sondas','Sondas sumergibles','Electrodos y sondas (pH, TDS, turbidez, temperatura, nivel y ORP) que bajan por el tubo hasta el agua.',
+  new THREE.Vector3(0,0.95,0.10),new THREE.Vector3(0,-0.4,0.4));
+  [[-0.03,0x2b2b2b],[0,0x8a929a],[0.03,0x1b1b1b]].forEach(([x,c])=>{const r=cyl(0.012,0.012,0.7,c,{metal:.5});r.position.set(x,1.12,0.02);add(g,r);});
+  const tip=new THREE.Mesh(new THREE.SphereGeometry(0.03,16,16),mat(0x9aa7b3,{metal:.6}));tip.position.set(0,0.8,0.02);add(g,tip);})();
+
+/* ================= UI ================= */
+const listEl=document.getElementById('list'),tip=document.getElementById('tip');
+const markerEls={},byId={}; parts.forEach(p=>byId[p.userData.id]=p);
+const order=['panel','carcasa','controlador','bateria','sondas','estructura','base'];
+order.forEach((id,i)=>{const p=byId[id];p.userData.num=i+1;
+  const it=document.createElement('div');it.className='item';it.dataset.id=id;
+  it.innerHTML=`<div class="num">${i+1}</div><b>${p.userData.name}</b>`;
+  it.addEventListener('mouseenter',()=>highlight(id));it.addEventListener('mouseleave',()=>highlight(null));
+  it.addEventListener('click',()=>activate(id));listEl.appendChild(it);
+  const m=document.createElement('div');m.className='marker'+(id==='carcasa'?' box':'');m.textContent=i+1;m.dataset.id=id;
+  m.addEventListener('mouseenter',e=>{highlight(id);showTip(id,e.clientX,e.clientY);});
+  m.addEventListener('mousemove',e=>moveTip(e.clientX,e.clientY));
+  m.addEventListener('mouseleave',()=>{highlight(null);hideTip();});
+  m.addEventListener('click',()=>activate(id));
+  document.body.appendChild(m);markerEls[id]=m;});
+
+let hi=null;
+function setEm(g,on){g.traverse(o=>{if(o.isMesh&&o.material&&o.material.emissive){
+  if(on){if(o.userData._e===undefined){o.userData._e=o.material.emissive.getHex();o.userData._ei=o.material.emissiveIntensity??1;}
+    o.material.emissive.setHex(0x2E8B45);o.material.emissiveIntensity=0.5;}
+  else if(o.userData._e!==undefined){o.material.emissive.setHex(o.userData._e);o.material.emissiveIntensity=o.userData._ei;o.userData._e=undefined;}}});}
+function highlight(id){if(hi&&hi!==id)setEm(byId[hi],false);
+  document.querySelectorAll('.item').forEach(x=>x.classList.toggle('active',x.dataset.id===id));
+  Object.values(markerEls).forEach(m=>m.classList.toggle('active',m.dataset.id===id));
+  if(id){setEm(byId[id],true);hi=id;}else hi=null;}
+function showTip(id,x,y){const p=byId[id].userData;tip.innerHTML=`<b>${p.num}. ${p.name}</b>${p.desc}`;tip.style.opacity=1;moveTip(x,y);}
+function moveTip(x,y){tip.style.left=Math.min(x+14,innerWidth-tip.offsetWidth-10)+'px';tip.style.top=(y+14)+'px';}
+function hideTip(){tip.style.opacity=0;}
+function activate(id){ if(byId[id].userData.action==='modal'){openModal();} else focusPart(id); }
+
+const ray=new THREE.Raycaster(),mv=new THREE.Vector2();
+function pick(cx,cy){mv.x=(cx/innerWidth)*2-1;mv.y=-(cy/innerHeight)*2+1;ray.setFromCamera(mv,camera);
+  const hits=ray.intersectObjects(scene.children,true);
+  for(const h of hits){if(h.object.userData&&h.object.userData.root)return h.object.userData.root.userData.id;}return null;}
+renderer.domElement.addEventListener('pointermove',e=>{if(dragging)return;const id=pick(e.clientX,e.clientY);
+  if(id){highlight(id);showTip(id,e.clientX,e.clientY);renderer.domElement.style.cursor=byId[id].userData.action==='modal'?'pointer':'default';}
+  else{if(hi)highlight(null);hideTip();renderer.domElement.style.cursor='grab';}});
+
+/* ---------- orbit ---------- */
+const target=new THREE.Vector3(0,1.45,0);let radius=5.3,theta=0.72,phi=1.14,autoRot=false;
+function updateCam(){camera.position.set(target.x+radius*Math.sin(phi)*Math.sin(theta),target.y+radius*Math.cos(phi),target.z+radius*Math.sin(phi)*Math.cos(theta));camera.lookAt(target);}
+let dragging=false,moved=0,lx=0,ly=0;const el=renderer.domElement;
+el.addEventListener('pointerdown',e=>{dragging=true;moved=0;lx=e.clientX;ly=e.clientY;el.setPointerCapture(e.pointerId);hideHint();});
+el.addEventListener('pointerup',e=>{dragging=false; if(moved<6){const id=pick(e.clientX,e.clientY); if(id)activate(id);}});
+el.addEventListener('pointercancel',()=>dragging=false);
+el.addEventListener('pointermove',e=>{if(!dragging)return;moved+=Math.abs(e.clientX-lx)+Math.abs(e.clientY-ly);
+  theta-=(e.clientX-lx)*0.008;phi-=(e.clientY-ly)*0.008;phi=Math.max(0.15,Math.min(Math.PI-0.15,phi));lx=e.clientX;ly=e.clientY;});
+el.addEventListener('wheel',e=>{e.preventDefault();radius*=(e.deltaY<0?0.9:1.1);radius=Math.max(2.4,Math.min(12,radius));},{passive:false});
+let pd=null;
+el.addEventListener('touchmove',e=>{if(e.touches.length===2){e.preventDefault();const dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY,d=Math.hypot(dx,dy);if(pd){radius*=pd/d;radius=Math.max(2.4,Math.min(12,radius));}pd=d;}},{passive:false});
+el.addEventListener('touchend',()=>pd=null);
+
+/* ---------- explode / focus ---------- */
+let exploded=false,expT=0,expTarget=0;
+document.getElementById('explode').addEventListener('click',function(){exploded=!exploded;expTarget=exploded?1:0;this.classList.toggle('on',exploded);this.textContent=exploded?'⇲ Juntar piezas':'⤢ Separar piezas';});
+document.getElementById('rotate').addEventListener('click',function(){autoRot=!autoRot;this.classList.toggle('on',autoRot);});
+document.getElementById('reset').addEventListener('click',()=>{radius=5.3;theta=0.72;phi=1.14;target.set(0,1.45,0);});
+let focusAnim=null;
+function focusPart(id){const c=byId[id].userData.center;focusAnim={t:0,fT:target.clone(),tT:c.clone(),fR:radius,tR:Math.max(2.8,Math.min(4.4,radius))};highlight(id);}
+
+const v=new THREE.Vector3();
+function updateMarkers(){parts.forEach(p=>{const e2=markerEls[p.userData.id];v.copy(p.userData.center).add(p.position).project(camera);
+  if(v.z>1){e2.style.display='none';return;}e2.style.display='flex';
+  e2.style.left=((v.x*0.5+0.5)*innerWidth)+'px';e2.style.top=((-v.y*0.5+0.5)*innerHeight)+'px';});}
+
+function animate(){requestAnimationFrame(animate);
+  if(autoRot&&!dragging)theta+=0.0045;
+  if(Math.abs(expT-expTarget)>0.001){expT+=(expTarget-expT)*0.12;parts.forEach(p=>{p.position.copy(p.userData.home).lerp(p.userData.exp,expT);});}
+  if(focusAnim){focusAnim.t=Math.min(1,focusAnim.t+0.04);const k=1-Math.pow(1-focusAnim.t,3);
+    target.lerpVectors(focusAnim.fT,focusAnim.tT,k);radius=focusAnim.fR+(focusAnim.tR-focusAnim.fR)*k;if(focusAnim.t>=1)focusAnim=null;}
+  updateCam();renderer.render(scene,camera);updateMarkers();}
+updateCam();animate();
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+let hintHidden=false;function hideHint(){if(hintHidden)return;hintHidden=true;const h=document.getElementById('hint');if(h){h.style.opacity=0;setTimeout(()=>h.remove(),600);}}
+setTimeout(hideHint,7000);
+
+/* ================= MODAL (internal electronics) ================= */
+function ic(inner){return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;}
+const pins=(y)=>{let s='';for(let i=0;i<12;i++)s+=`<rect x="${6+i*4.3}" y="${y}" width="2" height="4" fill="#c9a227"/>`;return s;};
+const inside=[
+ {n:'ESP32', svg:ic(`<rect x="8" y="8" width="48" height="48" rx="4" fill="#1c1c1c"/>${pins(8)}${pins(52)}<rect x="30" y="16" width="20" height="22" rx="2" fill="#3a3a3a"/><rect x="33" y="19" width="14" height="10" fill="#555"/><rect x="12" y="18" width="12" height="8" rx="1" fill="#0a0a0a"/>`)},
+ {n:'Módulo LoRa Ra-01 / SX1278', svg:ic(`<rect x="12" y="14" width="34" height="36" rx="3" fill="#2a6fb5"/><rect x="17" y="19" width="24" height="20" rx="2" fill="#cfd6db"/><circle cx="20" cy="44" r="1.6" fill="#eee"/><path d="M46 20 q10 0 10 10 t-4 14" stroke="#cbb26a" stroke-width="2.4" fill="none"/>`)},
+ {n:'Sensor de pH', svg:ic(`<rect x="30" y="12" width="24" height="18" rx="2" fill="#2e8b45"/><rect x="34" y="16" width="7" height="7" fill="#1f6a34"/><rect x="10" y="34" width="20" height="8" rx="4" fill="#3aa0d6"/><rect x="8" y="40" width="24" height="14" rx="3" fill="#2b7fb0"/><circle cx="20" cy="55" r="3" fill="#8fd0ff"/>`)},
+ {n:'Sensor de TDS', svg:ic(`<rect x="12" y="12" width="30" height="24" rx="3" fill="#123a63"/><rect x="18" y="18" width="10" height="8" fill="#cfd6db"/><rect x="24" y="40" width="3" height="14" fill="#9aa7b3"/><rect x="31" y="40" width="3" height="14" fill="#9aa7b3"/>`)},
+ {n:'Sensor de turbidez', svg:ic(`<rect x="12" y="12" width="26" height="20" rx="3" fill="#123a63"/><rect x="40" y="30" width="16" height="22" rx="6" fill="#dfe8ef" stroke="#b9c6d2" stroke-width="1.5"/><rect x="44" y="34" width="8" height="14" rx="4" fill="#c9d6df"/>`)},
+ {n:'Sensor de temperatura DS18B20', svg:ic(`<rect x="30" y="40" width="20" height="10" rx="5" fill="#9aa7b3"/><rect x="48" y="42" width="8" height="6" rx="2" fill="#7f8a94"/><path d="M8 20 q10 -8 22 6 q10 12 -2 20" stroke="#111" stroke-width="3" fill="none"/>`)},
+ {n:'Sensor de nivel de agua', svg:ic(`<rect x="30" y="10" width="4" height="40" fill="#8a929a"/><ellipse cx="32" cy="34" rx="16" ry="9" fill="#eef2f5" stroke="#c3cdd6" stroke-width="1.5"/><path d="M22 52 q-4 -6 0 -10" stroke="#111" stroke-width="2" fill="none"/><path d="M42 52 q4 -6 0 -10" stroke="#c22" stroke-width="2" fill="none"/>`)},
+ {n:'Sensor ORP 501Z', svg:ic(`<rect x="10" y="34" width="22" height="9" rx="4" fill="#2f6fb0"/><rect x="8" y="40" width="26" height="14" rx="3" fill="#25588c"/><circle cx="21" cy="55" r="3" fill="#7fd0ff"/><rect x="38" y="14" width="18" height="14" rx="2" fill="#123a63"/>`)},
+ {n:'Mini interruptor ON-OFF', svg:ic(`<rect x="18" y="30" width="28" height="22" rx="3" fill="#161616"/><circle cx="32" cy="24" r="12" fill="#cc2b2b"/><circle cx="32" cy="24" r="12" fill="none" stroke="#8f1d1d" stroke-width="2"/>`)},
+ {n:'Conector de alimentación', svg:ic(`<rect x="8" y="24" width="26" height="16" rx="3" fill="#161616"/><circle cx="14" cy="32" r="5" fill="#333"/><rect x="34" y="22" width="18" height="20" rx="2" fill="#2e8b45"/><rect x="38" y="18" width="3" height="8" fill="#c9a227"/><rect x="45" y="18" width="3" height="8" fill="#c9a227"/>`)},
+ {n:'Resistencias (4.7k / 10k / 20k)', svg:ic(`<line x1="6" y1="32" x2="58" y2="32" stroke="#9aa7b3" stroke-width="2"/><rect x="20" y="24" width="24" height="16" rx="8" fill="#d8c9a0"/><rect x="25" y="24" width="3" height="16" fill="#8a5a2b"/><rect x="30" y="24" width="3" height="16" fill="#c0392b"/><rect x="35" y="24" width="3" height="16" fill="#e0a020"/>`)},
+ {n:'Cables (18 y 24 AWG)', svg:ic(`<path d="M8 20 q20 -8 48 6" stroke="#c0392b" stroke-width="3" fill="none"/><path d="M8 30 q20 -8 48 6" stroke="#2a6fb5" stroke-width="3" fill="none"/><path d="M8 40 q20 -8 48 6" stroke="#e0a020" stroke-width="3" fill="none"/><path d="M8 50 q20 -8 48 6" stroke="#2e8b45" stroke-width="3" fill="none"/>`)},
+ {n:'Cable termoretráctil', svg:ic(`<rect x="10" y="20" width="10" height="26" rx="4" fill="#c0392b"/><rect x="24" y="18" width="10" height="30" rx="4" fill="#161616"/><rect x="38" y="22" width="10" height="24" rx="4" fill="#c0392b"/>`)},
+];
+const grid=document.getElementById('grid');
+inside.forEach(c=>{const d=document.createElement('div');d.className='card';d.innerHTML=`${c.svg}<div class="nm">${c.n}</div>`;grid.appendChild(d);});
+const modal=document.getElementById('modal');
+function openModal(){modal.classList.add('show');}
+function closeModal(){modal.classList.remove('show');}
+document.getElementById('closeModal').addEventListener('click',closeModal);
+modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
+addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+window.__open=openModal; window.__focus=focusPart; window.__explode=()=>document.getElementById('explode').click();
+</script>
+</body>
+</html>
